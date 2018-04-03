@@ -1,5 +1,6 @@
 package org.jenkinsci.plugins.rustlang;
 
+import com.google.common.annotations.VisibleForTesting;
 import hudson.Extension;
 import hudson.FilePath;
 import hudson.model.DownloadService;
@@ -10,11 +11,14 @@ import hudson.tools.DownloadFromUrlInstaller;
 import hudson.tools.ToolInstallation;
 import hudson.tools.ToolInstallerDescriptor;
 import hudson.util.VersionNumber;
+import jenkins.security.MasterToSlaveCallable;
 import net.sf.json.JSONObject;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 import java.io.IOException;
 import java.net.URL;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
@@ -71,12 +75,21 @@ public class RustlangInstaller extends DownloadFromUrlInstaller {
 
         // Gather properties for the node to install on
         String[] properties = node.getChannel().call(new GetSystemProperties("os.name", "os.arch", "os.version"));
-        String platform = getPlatform(properties[0]);
-        String architecture = getArchitecture(properties[1]);
-        String osVersion = properties[2];
 
-        // Search for an appropriate variant
-        for (RustlangInstallable i : release.variants) {
+	        // Get the best matching install candidate for this node
+        return getInstallCandidate(release, properties[0], properties[1], properties[2]);
+    }
+
+    @VisibleForTesting
+    static RustlangInstallable getInstallCandidate(RustlangRelease release, String osName, String osArch, String osVersion)
+            throws InstallationFailedException {
+        String platform = getPlatform(osName);
+        String architecture = getArchitecture(osArch);
+
+        // Sort and search for an appropriate variant
+        List<RustlangInstallable> variants = Arrays.asList(release.variants);
+        Collections.sort(variants);
+        for (RustlangInstallable i : variants) {
             if (i.os.equals(platform) && i.arch.equals(architecture)) {
                 if (i.osxversion == null) {
                     return i;
@@ -87,8 +100,8 @@ public class RustlangInstaller extends DownloadFromUrlInstaller {
             }
         }
 
-        String osWithVersion = osVersion == null ? properties[0] : String.format("%s %s", properties[0], osVersion);
-        throw new InstallationFailedException(Messages.NoInstallerForOs(release.name, osWithVersion, properties[1]));
+	String osWithVersion = osVersion == null ? osName : String.format("%s %s", osName, osVersion);
+        throw new InstallationFailedException(Messages.NoInstallerForOs(release.name, osWithVersion, osArch));
     }
 
     private RustlangRelease getConfiguredRelease() {
@@ -151,10 +164,24 @@ public class RustlangInstaller extends DownloadFromUrlInstaller {
     }
 
     // Needs to be public for JSON deserialisation
-    public static class RustlangInstallable extends DownloadFromUrlInstaller.Installable {
+    public static class RustlangInstallable extends Installable implements Comparable<RustlangInstallable> {
         public String os;
         public String osxversion;
         public String arch;
+
+        public int compareTo(RustlangInstallable o) {
+            // Sort by OS X version, descending
+            if (osxversion != null && o.osxversion != null) {
+                return new VersionNumber(o.osxversion).compareTo(new VersionNumber(osxversion));
+            }
+            // Otherwise we don't really care; sort by OS name
+            return os.compareTo(o.os);
+        }
+
+        @Override
+        public String toString() {
+            return String.format("RustlangInstallable[os=%s, arch=%s, version=%s]", os, arch, osxversion);
+        }
     }
 
     /** @return The OS value used in a Rust archive filename, for the given {@code os.name} value. */
@@ -179,16 +206,16 @@ public class RustlangInstaller extends DownloadFromUrlInstaller {
     private static String getArchitecture(String arch) throws InstallationFailedException {
         String value = arch.toLowerCase(Locale.ENGLISH);
         if (value.contains("amd64") || value.contains("86_64")) {
-            return "amd64";
+            return "x86_64";
         }
         if (value.contains("86")) {
-            return "386";
+            return "i686";
         }
         throw new InstallationFailedException(Messages.UnsupportedCpuArch(arch));
     }
 
     /** Returns the values of the given Java system properties. */
-    private static class GetSystemProperties implements Callable<String[], InterruptedException> {
+    private static class GetSystemProperties extends MasterToSlaveCallable<String[], InterruptedException> {
         private static final long serialVersionUID = 1L;
 
         private final String[] properties;
@@ -207,7 +234,7 @@ public class RustlangInstaller extends DownloadFromUrlInstaller {
     }
 
     // Extend IOException so we can throw and stop the build if installation fails
-    private static class InstallationFailedException extends IOException {
+    static class InstallationFailedException extends IOException {
         InstallationFailedException(String message) {
             super(message);
         }

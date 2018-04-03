@@ -8,12 +8,15 @@ import hudson.model.TaskListener;
 import hudson.slaves.NodeSpecific;
 import hudson.tools.ToolDescriptor;
 import hudson.tools.ToolInstallation;
+import hudson.tools.ToolInstaller;
 import hudson.tools.ToolProperty;
 import jenkins.model.Jenkins;
+import org.jenkinsci.Symbol;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 import java.io.File;
 import java.io.IOException;
+import java.util.Collections;
 import java.util.List;
 
 public class RustlangInstallation extends ToolInstallation implements EnvironmentSpecific<RustlangInstallation>,
@@ -42,11 +45,17 @@ public class RustlangInstallation extends ToolInstallation implements Environmen
     }
 
     @Extension
+    @Symbol("rust")
     public static class DescriptorImpl extends ToolDescriptor<RustlangInstallation> {
 
         @Override
         public String getDisplayName() {
             return "Rust";
+        }
+
+        @Override
+        public List<? extends ToolInstaller> getDefaultInstallers() {
+            return Collections.singletonList(new RustlangInstaller(null));
         }
 
         @Override
