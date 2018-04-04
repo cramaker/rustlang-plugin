@@ -74,14 +74,14 @@ public class RustlangInstaller extends DownloadFromUrlInstaller {
         }
 
         // Gather properties for the node to install on
-        String[] properties = node.getChannel().call(new GetSystemProperties("os.name", "os.arch", "os.version"));
+        String[] properties = node.getChannel().call(new GetSystemProperties("os.arch", "os.name"));
 
 	        // Get the best matching install candidate for this node
-        return getInstallCandidate(release, properties[0], properties[1], properties[2]);
+        return getInstallCandidate(release, properties[0], properties[1]);
     }
 
     @VisibleForTesting
-    static RustlangInstallable getInstallCandidate(RustlangRelease release, String osName, String osArch, String osVersion)
+    static RustlangInstallable getInstallCandidate(RustlangRelease release, String osArch, String osName)
             throws InstallationFailedException {
         String platform = getPlatform(osName);
         String architecture = getArchitecture(osArch);
@@ -91,17 +91,11 @@ public class RustlangInstaller extends DownloadFromUrlInstaller {
         Collections.sort(variants);
         for (RustlangInstallable i : variants) {
             if (i.os.equals(platform) && i.arch.equals(architecture)) {
-                if (i.osxversion == null) {
-                    return i;
-                }
-                if (new VersionNumber(osVersion).compareTo(new VersionNumber(i.osxversion)) >= 0) {
-                    return i;
-                }
+                return i;
             }
         }
 
-	String osWithVersion = osVersion == null ? osName : String.format("%s %s", osName, osVersion);
-        throw new InstallationFailedException(Messages.NoInstallerForOs(release.name, osWithVersion, osArch));
+        throw new InstallationFailedException(Messages.NoInstallerForOs(release.name, osArch, osName));
     }
 
     private RustlangRelease getConfiguredRelease() {
@@ -170,21 +164,16 @@ public class RustlangInstaller extends DownloadFromUrlInstaller {
     // Needs to be public for JSON deserialisation
     public static class RustlangInstallable extends Installable implements Comparable<RustlangInstallable> {
         public String os;
-        public String osxversion;
         public String arch;
 
         public int compareTo(RustlangInstallable o) {
-            // Sort by OS X version, descending
-            if (osxversion != null && o.osxversion != null) {
-                return new VersionNumber(o.osxversion).compareTo(new VersionNumber(osxversion));
-            }
             // Otherwise we don't really care; sort by OS name
             return os.compareTo(o.os);
         }
 
         @Override
         public String toString() {
-            return String.format("RustlangInstallable[os=%s, arch=%s, version=%s]", os, arch, osxversion);
+            return String.format("RustlangInstallable[arch=%s, os=%s]", arch, os);
         }
     }
 
@@ -195,7 +184,7 @@ public class RustlangInstaller extends DownloadFromUrlInstaller {
             return "freebsd";
         }
         if (value.contains("linux")) {
-            return "linux";
+            return "linux-gnu";
         }
         if (value.contains("os x")) {
             return "darwin";
