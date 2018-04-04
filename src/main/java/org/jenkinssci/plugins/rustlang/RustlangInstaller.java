@@ -145,6 +145,10 @@ public class RustlangInstaller extends DownloadFromUrlInstaller {
             JSONObject root;
             try {
                 root = getData();
+                if (root == null) {
+                    // JSON file has not been downloaded by Jenkins yet
+                    return null;
+                }
             } catch (IOException e) {
                 return null;
             }
