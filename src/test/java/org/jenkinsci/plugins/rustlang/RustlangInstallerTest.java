@@ -20,7 +20,7 @@ public class RustlangInstallerTest {
         RustlangRelease release = createReleaseInfo();
 
         // When we try to get the install package for an OS which is not supported
-        RustlangInstaller.getInstallCandidate(release, "Android", "armv7a", null);
+        RustlangInstaller.getInstallCandidate(release, "Android", "armv7a");
 
         // Then an exception should be thrown
     }
@@ -35,15 +35,7 @@ public class RustlangInstallerTest {
     }
 
     private static RustlangInstallable createPackage(String os, String arch) {
-        return createPackage(os, arch, null);
-    }
-
-    private static RustlangInstallable createPackage(String os, String arch, String osxVersion) {
-        RustlangInstallable pkg = new RustlangInstallable();
-        pkg.os = os;
-        pkg.arch = arch;
-        pkg.osxversion = osxVersion;
-        return pkg;
+        return createPackage(os, arch);
     }
 
 }
