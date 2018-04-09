@@ -32,7 +32,9 @@ public class RustlangInstallation extends ToolInstallation implements Environmen
         String root = getHome();
         if (root != null) {
             env.put("RUSTROOT", root);
-            env.put("PATH+RUSTROOT_BIN", new File(root, "bin").toString());
+            env.put("PATH_CARGOROOT_BIN", new File(root, "cargo/bin").toString());
+            env.put("PATH_RUSTCROOT_BIN", new File(root, "rustc/bin").toString());
+            env.put("LD_LIBRARY_PATH", new File(root, "rust-std-x86_64-unknown-linux-gnu/lib/rustlib/x86_64-unknown-linux-gnu/lib").toString());
         }
     }
 
