@@ -16,6 +16,7 @@ import net.sf.json.JSONObject;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 import java.io.IOException;
+import java.io.File;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.Collections;
@@ -60,6 +61,10 @@ public class RustlangInstaller extends DownloadFromUrlInstaller {
             if (base != null && base != expectedPath)
                 base.moveAllChildrenTo(expectedPath);
             // leave a record for the next up-to-date check
+            new File (expectedPath + "/local").mkdir();
+            String installScript = expectedPath + "/install.sh --prefix=" + expectedPath + "/local";
+            ProcessBuilder runInstallScript = new ProcessBuilder(installScript);
+            Process runInstall = runInstallScript.start();
             expectedPath.child(".installedFrom").write(installable.url, "UTF-8");
         }
 
