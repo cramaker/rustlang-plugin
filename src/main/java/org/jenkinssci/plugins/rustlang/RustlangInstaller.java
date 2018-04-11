@@ -61,12 +61,20 @@ public class RustlangInstaller extends DownloadFromUrlInstaller {
             if (base != null && base != expectedPath)
                 base.moveAllChildrenTo(expectedPath);
             // leave a record for the next up-to-date check
-            new File (expectedPath + "/local").mkdir();
-            String installScript = expectedPath + "/install.sh --prefix=" + expectedPath + "/local";
-            ProcessBuilder runInstallScript = new ProcessBuilder(installScript);
-            Process runInstall = runInstallScript.start();
             expectedPath.child(".installedFrom").write(installable.url, "UTF-8");
+
         }
+
+        if (base != null)
+            new File (expectedPath + "/local").mkdir();
+            String installScript = expectedPath + "/install.sh";
+            String binLocation = "--prefix=" + expectedPath + "/local";
+            List<String> params = java.util.Arrays.asList(installScript, binLocation);
+            ProcessBuilder runInstallScript = new ProcessBuilder(params);
+            Process runInstall = runInstallScript.start();
+
+
+
 
         return expectedPath;
     }
