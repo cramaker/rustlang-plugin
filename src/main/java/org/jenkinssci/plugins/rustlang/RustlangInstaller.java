@@ -16,6 +16,7 @@ import net.sf.json.JSONObject;
 import org.kohsuke.stapler.DataBoundConstructor;
 
 import java.io.IOException;
+import java.io.File;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.Collections;
@@ -61,12 +62,18 @@ public class RustlangInstaller extends DownloadFromUrlInstaller {
                 base.moveAllChildrenTo(expectedPath);
             // leave a record for the next up-to-date check
             expectedPath.child(".installedFrom").write(installable.url, "UTF-8");
+
+        if (expectedPath.child("install.sh") != null) {
+            String installScript = expectedPath + "/install.sh";
+            String binLocation = " --prefix=" + expectedPath + "/local";
+            runInstallScript(node, installScript, binLocation);
+        }
         }
 
         return expectedPath;
     }
 
-    private Installable getInstallable(Node node) throws IOException, InterruptedException {
+    public Installable getInstallable(Node node) throws IOException, InterruptedException {
         // Get the Rust release that we want to install
         RustlangRelease release = getConfiguredRelease();
         if (release == null) {
@@ -76,8 +83,20 @@ public class RustlangInstaller extends DownloadFromUrlInstaller {
         // Gather properties for the node to install on
         String[] properties = node.getChannel().call(new GetSystemProperties("os.arch", "os.name"));
 
-	        // Get the best matching install candidate for this node
+        // Get the best matching install candidate for this node
         return getInstallCandidate(release, properties[0], properties[1]);
+    }
+
+    public ProcessBuilder runInstallScript(Node node, final String installScript, final String binLocation) throws IOException, InterruptedException {
+
+        return node.getChannel().call(new MasterToSlaveCallable<ProcessBuilder, IOException>() {
+                public ProcessBuilder call() throws IOException {
+                    List<String> params = java.util.Arrays.asList(installScript, binLocation);
+                    ProcessBuilder runInstallScripter = new ProcessBuilder(params);
+                    Process runInstall = runInstallScripter.start();
+                    return runInstallScripter;
+                }
+            });
     }
 
     @VisibleForTesting
